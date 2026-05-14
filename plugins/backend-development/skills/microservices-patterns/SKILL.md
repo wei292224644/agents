@@ -1,104 +1,104 @@
 ---
 name: microservices-patterns
-description: Design microservices architectures with service boundaries, event-driven communication, and resilience patterns. Use when building distributed systems, decomposing monoliths, or implementing microservices.
+description: 设计包含服务边界、事件驱动通信和弹性模式的微服务架构。在构建分布式系统、分解单体应用或实现微服务时主动使用。
 ---
 
-# Microservices Patterns
+# 微服务模式
 
-Master microservices architecture patterns including service boundaries, inter-service communication, data management, and resilience patterns for building distributed systems.
+掌握微服务架构模式，包括服务边界、服务间通信、数据管理以及构建分布式系统的弹性模式。
 
-## When to Use This Skill
+## 何时使用此技能
 
-- Decomposing monoliths into microservices
-- Designing service boundaries and contracts
-- Implementing inter-service communication
-- Managing distributed data and transactions
-- Building resilient distributed systems
-- Implementing service discovery and load balancing
-- Designing event-driven architectures
+- 将单体应用分解为微服务
+- 设计服务边界和契约
+- 实现服务间通信
+- 管理分布式数据和事务
+- 构建弹性分布式系统
+- 实现服务发现和负载均衡
+- 设计事件驱动架构
 
-## Core Concepts
+## 核心概念
 
-### 1. Service Decomposition Strategies
+### 1. 服务分解策略
 
-**By Business Capability**
+**按业务能力**
 
-- Organize services around business functions
-- Each service owns its domain
-- Example: OrderService, PaymentService, InventoryService
+- 围绕业务功能组织服务
+- 每个服务拥有自己的领域
+- 示例：OrderService, PaymentService, InventoryService
 
-**By Subdomain (DDD)**
+**按子域（DDD）**
 
-- Core domain, supporting subdomains
-- Bounded contexts map to services
-- Clear ownership and responsibility
+- 核心域、支撑子域
+- 限界上下文映射到服务
+- 明确的所有权和职责
 
-**Strangler Fig Pattern**
+**绞杀者模式（Strangler Fig Pattern）**
 
-- Gradually extract from monolith
-- New functionality as microservices
-- Proxy routes to old/new systems
+- 逐步从单体中提取
+- 新功能作为微服务
+- 代理路由到旧/新系统
 
-### 2. Communication Patterns
+### 2. 通信模式
 
-**Synchronous (Request/Response)**
+**同步（请求/响应）**
 
-- REST APIs
+- REST API
 - gRPC
 - GraphQL
 
-**Asynchronous (Events/Messages)**
+**异步（事件/消息）**
 
-- Event streaming (Kafka)
-- Message queues (RabbitMQ, SQS)
-- Pub/Sub patterns
+- 事件流（Kafka）
+- 消息队列（RabbitMQ, SQS）
+- 发布/订阅模式
 
-### 3. Data Management
+### 3. 数据管理
 
-**Database Per Service**
+**每个服务一个数据库**
 
-- Each service owns its data
-- No shared databases
-- Loose coupling
+- 每个服务拥有自己的数据
+- 不共享数据库
+- 松耦合
 
-**Saga Pattern**
+**Saga 模式**
 
-- Distributed transactions
-- Compensating actions
-- Eventual consistency
+- 分布式事务
+- 补偿操作
+- 最终一致性
 
-### 4. Resilience Patterns
+### 4. 弹性模式
 
-**Circuit Breaker**
+**熔断器**
 
-- Fail fast on repeated errors
-- Prevent cascade failures
+- 重复错误时快速失败
+- 防止级联故障
 
-**Retry with Backoff**
+**带退避的重试**
 
-- Transient fault handling
-- Exponential backoff
+- 瞬态故障处理
+- 指数退避
 
-**Bulkhead**
+**舱壁（Bulkhead）**
 
-- Isolate resources
-- Limit impact of failures
+- 隔离资源
+- 限制故障影响范围
 
-## Service Decomposition Patterns
+## 服务分解模式
 
-### Pattern 1: By Business Capability
+### 模式 1：按业务能力
 
 ```python
-# E-commerce example
+# 电子商务示例
 
-# Order Service
+# 订单服务
 class OrderService:
-    """Handles order lifecycle."""
+    """处理订单生命周期。"""
 
     async def create_order(self, order_data: dict) -> Order:
         order = Order.create(order_data)
 
-        # Publish event for other services
+        # 向其他服务发布事件
         await self.event_bus.publish(
             OrderCreatedEvent(
                 order_id=order.id,
@@ -110,12 +110,12 @@ class OrderService:
 
         return order
 
-# Payment Service (separate service)
+# 支付服务（独立服务）
 class PaymentService:
-    """Handles payment processing."""
+    """处理支付流程。"""
 
     async def process_payment(self, payment_request: PaymentRequest) -> PaymentResult:
-        # Process payment
+        # 处理支付
         result = await self.payment_gateway.charge(
             amount=payment_request.amount,
             customer=payment_request.customer_id
@@ -131,21 +131,21 @@ class PaymentService:
 
         return result
 
-# Inventory Service (separate service)
+# 库存服务（独立服务）
 class InventoryService:
-    """Handles inventory management."""
+    """处理库存管理。"""
 
     async def reserve_items(self, order_id: str, items: List[OrderItem]) -> ReservationResult:
-        # Check availability
+        # 检查可用性
         for item in items:
             available = await self.inventory_repo.get_available(item.product_id)
             if available < item.quantity:
                 return ReservationResult(
                     success=False,
-                    error=f"Insufficient inventory for {item.product_id}"
+                    error=f"商品 {item.product_id} 库存不足"
                 )
 
-        # Reserve items
+        # 预留商品
         reservation = await self.create_reservation(order_id, items)
 
         await self.event_bus.publish(
@@ -158,7 +158,7 @@ class InventoryService:
         return ReservationResult(success=True, reservation=reservation)
 ```
 
-### Pattern 2: API Gateway
+### 模式 2：API 网关
 
 ```python
 from fastapi import FastAPI, HTTPException, Depends
@@ -168,7 +168,7 @@ from circuitbreaker import circuit
 app = FastAPI()
 
 class APIGateway:
-    """Central entry point for all client requests."""
+    """所有客户端请求的中央入口点。"""
 
     def __init__(self):
         self.order_service_url = "http://order-service:8000"
@@ -178,7 +178,7 @@ class APIGateway:
 
     @circuit(failure_threshold=5, recovery_timeout=30)
     async def call_order_service(self, path: str, method: str = "GET", **kwargs):
-        """Call order service with circuit breaker."""
+        """调用订单服务，带熔断器保护。"""
         response = await self.http_client.request(
             method,
             f"{self.order_service_url}{path}",
@@ -187,9 +187,31 @@ class APIGateway:
         response.raise_for_status()
         return response.json()
 
+    @circuit(failure_threshold=5, recovery_timeout=30)
+    async def call_payment_service(self, path: str, method: str = "GET", **kwargs):
+        """调用支付服务，带熔断器保护。"""
+        response = await self.http_client.request(
+            method,
+            f"{self.payment_service_url}{path}",
+            **kwargs
+        )
+        response.raise_for_status()
+        return response.json()
+
+    @circuit(failure_threshold=5, recovery_timeout=30)
+    async def call_inventory_service(self, path: str, method: str = "GET", **kwargs):
+        """调用库存服务，带熔断器保护。"""
+        response = await self.http_client.request(
+            method,
+            f"{self.inventory_service_url}{path}",
+            **kwargs
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def create_order_aggregate(self, order_id: str) -> dict:
-        """Aggregate data from multiple services."""
-        # Parallel requests
+        """聚合多个服务的数据。"""
+        # 并行请求
         order, payment, inventory = await asyncio.gather(
             self.call_order_service(f"/orders/{order_id}"),
             self.call_payment_service(f"/payments/order/{order_id}"),
@@ -197,7 +219,7 @@ class APIGateway:
             return_exceptions=True
         )
 
-        # Handle partial failures
+        # 处理部分失败
         result = {"order": order}
         if not isinstance(payment, Exception):
             result["payment"] = payment
@@ -211,9 +233,9 @@ async def create_order(
     order_data: dict,
     gateway: APIGateway = Depends()
 ):
-    """API Gateway endpoint."""
+    """API 网关端点。"""
     try:
-        # Route to order service
+        # 路由到订单服务
         order = await gateway.call_order_service(
             "/orders",
             method="POST",
@@ -221,20 +243,20 @@ async def create_order(
         )
         return {"order": order}
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=503, detail="Order service unavailable")
+        raise HTTPException(status_code=503, detail="订单服务不可用")
 ```
 
-## Communication Patterns
+## 通信模式
 
-### Pattern 1: Synchronous REST Communication
+### 模式 1：同步 REST 通信
 
 ```python
-# Service A calls Service B
+# 服务 A 调用服务 B
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 class ServiceClient:
-    """HTTP client with retries and timeout."""
+    """带重试和超时的 HTTP 客户端。"""
 
     def __init__(self, base_url: str):
         self.base_url = base_url
@@ -248,26 +270,26 @@ class ServiceClient:
         wait=wait_exponential(multiplier=1, min=2, max=10)
     )
     async def get(self, path: str, **kwargs):
-        """GET with automatic retries."""
+        """GET 请求，自动重试。"""
         response = await self.client.get(f"{self.base_url}{path}", **kwargs)
         response.raise_for_status()
         return response.json()
 
     async def post(self, path: str, **kwargs):
-        """POST request."""
+        """POST 请求。"""
         response = await self.client.post(f"{self.base_url}{path}", **kwargs)
         response.raise_for_status()
         return response.json()
 
-# Usage
+# 用法
 payment_client = ServiceClient("http://payment-service:8001")
 result = await payment_client.post("/payments", json=payment_data)
 ```
 
-### Pattern 2: Asynchronous Event-Driven
+### 模式 2：异步事件驱动
 
 ```python
-# Event-driven communication with Kafka
+# 使用 Kafka 的事件驱动通信
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import json
 from dataclasses import dataclass, asdict
@@ -282,7 +304,7 @@ class DomainEvent:
     data: dict
 
 class EventBus:
-    """Event publishing and subscription."""
+    """事件发布和订阅。"""
 
     def __init__(self, bootstrap_servers: List[str]):
         self.bootstrap_servers = bootstrap_servers
@@ -296,7 +318,7 @@ class EventBus:
         await self.producer.start()
 
     async def publish(self, event: DomainEvent):
-        """Publish event to Kafka topic."""
+        """发布事件到 Kafka 主题。"""
         topic = event.event_type
         await self.producer.send_and_wait(
             topic,
@@ -305,7 +327,7 @@ class EventBus:
         )
 
     async def subscribe(self, topic: str, handler: callable):
-        """Subscribe to events."""
+        """订阅事件。"""
         consumer = AIOKafkaConsumer(
             topic,
             bootstrap_servers=self.bootstrap_servers,
@@ -321,7 +343,9 @@ class EventBus:
         finally:
             await consumer.stop()
 
-# Order Service publishes event
+# 订单服务发布事件
+import uuid
+
 async def create_order(order_data: dict):
     order = await save_order(order_data)
 
@@ -339,25 +363,25 @@ async def create_order(order_data: dict):
 
     await event_bus.publish(event)
 
-# Inventory Service listens for OrderCreated
+# 库存服务监听 OrderCreated
 async def handle_order_created(event_data: dict):
-    """React to order creation."""
+    """响应订单创建。"""
     order_id = event_data["data"]["order_id"]
     items = event_data["data"]["items"]
 
-    # Reserve inventory
+    # 预留库存
     await reserve_inventory(order_id, items)
 ```
 
-### Pattern 3: Saga Pattern (Distributed Transactions)
+### 模式 3：Saga 模式（分布式事务）
 
 ```python
-# Saga orchestration for order fulfillment
+# 订单履约的 Saga 编排
 from enum import Enum
 from typing import List, Callable
 
 class SagaStep:
-    """Single step in saga."""
+    """Saga 中的单一步骤。"""
 
     def __init__(
         self,
@@ -376,7 +400,7 @@ class SagaStatus(Enum):
     FAILED = "failed"
 
 class OrderFulfillmentSaga:
-    """Orchestrated saga for order fulfillment."""
+    """订单履约的编排式 Saga。"""
 
     def __init__(self):
         self.steps: List[SagaStep] = [
@@ -403,16 +427,16 @@ class OrderFulfillmentSaga:
         ]
 
     async def execute(self, order_data: dict) -> SagaResult:
-        """Execute saga steps."""
+        """执行 Saga 步骤。"""
         completed_steps = []
         context = {"order_data": order_data}
 
         try:
             for step in self.steps:
-                # Execute step
+                # 执行步骤
                 result = await step.action(context)
                 if not result.success:
-                    # Compensate
+                    # 补偿
                     await self.compensate(completed_steps, context)
                     return SagaResult(
                         status=SagaStatus.FAILED,
@@ -425,20 +449,20 @@ class OrderFulfillmentSaga:
             return SagaResult(status=SagaStatus.COMPLETED, data=context)
 
         except Exception as e:
-            # Compensate on error
+            # 出错时补偿
             await self.compensate(completed_steps, context)
             return SagaResult(status=SagaStatus.FAILED, error=str(e))
 
     async def compensate(self, completed_steps: List[SagaStep], context: dict):
-        """Execute compensating actions in reverse order."""
+        """按相反顺序执行补偿操作。"""
         for step in reversed(completed_steps):
             try:
                 await step.compensation(context)
             except Exception as e:
-                # Log compensation failure
-                print(f"Compensation failed for {step.name}: {e}")
+                # 记录补偿失败
+                print(f"步骤 {step.name} 的补偿失败: {e}")
 
-    # Step implementations
+    # 步骤实现
     async def create_order(self, context: dict) -> StepResult:
         order = await order_service.create(context["order_data"])
         return StepResult(success=True, data={"order_id": order.id})
@@ -474,9 +498,9 @@ class OrderFulfillmentSaga:
         await payment_service.refund(context["transaction_id"])
 ```
 
-## Resilience Patterns
+## 弹性模式
 
-### Circuit Breaker Pattern
+### 熔断器模式
 
 ```python
 from enum import Enum
@@ -484,12 +508,12 @@ from datetime import datetime, timedelta
 from typing import Callable, Any
 
 class CircuitState(Enum):
-    CLOSED = "closed"  # Normal operation
-    OPEN = "open"      # Failing, reject requests
-    HALF_OPEN = "half_open"  # Testing if recovered
+    CLOSED = "closed"  # 正常运行
+    OPEN = "open"      # 失败中，拒绝请求
+    HALF_OPEN = "half_open"  # 测试是否已恢复
 
 class CircuitBreaker:
-    """Circuit breaker for service calls."""
+    """服务调用的熔断器。"""
 
     def __init__(
         self,
@@ -507,13 +531,13 @@ class CircuitBreaker:
         self.opened_at = None
 
     async def call(self, func: Callable, *args, **kwargs) -> Any:
-        """Execute function with circuit breaker."""
+        """使用熔断器执行函数。"""
 
         if self.state == CircuitState.OPEN:
             if self._should_attempt_reset():
                 self.state = CircuitState.HALF_OPEN
             else:
-                raise CircuitBreakerOpenError("Circuit breaker is open")
+                raise CircuitBreakerOpenError("熔断器已打开")
 
         try:
             result = await func(*args, **kwargs)
@@ -525,7 +549,7 @@ class CircuitBreaker:
             raise
 
     def _on_success(self):
-        """Handle successful call."""
+        """处理成功调用。"""
         self.failure_count = 0
 
         if self.state == CircuitState.HALF_OPEN:
@@ -535,7 +559,7 @@ class CircuitBreaker:
                 self.success_count = 0
 
     def _on_failure(self):
-        """Handle failed call."""
+        """处理失败调用。"""
         self.failure_count += 1
 
         if self.failure_count >= self.failure_threshold:
@@ -547,13 +571,13 @@ class CircuitBreaker:
             self.opened_at = datetime.now()
 
     def _should_attempt_reset(self) -> bool:
-        """Check if enough time passed to try again."""
+        """检查是否已过足够时间再次尝试。"""
         return (
             datetime.now() - self.opened_at
             > timedelta(seconds=self.recovery_timeout)
         )
 
-# Usage
+# 用法
 breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=30)
 
 async def call_payment_service(payment_data: dict):

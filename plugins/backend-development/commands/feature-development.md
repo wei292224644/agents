@@ -1,45 +1,45 @@
 ---
-description: "Orchestrate end-to-end feature development from requirements to deployment"
-argument-hint: "<feature description> [--methodology tdd|bdd|ddd] [--complexity simple|medium|complex]"
+description: "从需求到部署，端到端地编排功能开发"
+argument-hint: "<功能描述> [--methodology tdd|bdd|ddd] [--complexity simple|medium|complex]"
 ---
 
-# Feature Development Orchestrator
+# 功能开发编排器
 
-## CRITICAL BEHAVIORAL RULES
+## 关键行为规则
 
-You MUST follow these rules exactly. Violating any of them is a failure.
+你必须严格遵守以下规则。违反任何一条都是失败。
 
-1. **Execute steps in order.** Do NOT skip ahead, reorder, or merge steps.
-2. **Write output files.** Each step MUST produce its output file in `.feature-dev/` before the next step begins. Read from prior step files — do NOT rely on context window memory.
-3. **Stop at checkpoints.** When you reach a `PHASE CHECKPOINT`, you MUST stop and wait for explicit user approval before continuing. Use the AskUserQuestion tool with clear options.
-4. **Halt on failure.** If any step fails (agent error, test failure, missing dependency), STOP immediately. Present the error and ask the user how to proceed. Do NOT silently continue.
-5. **Use only local agents.** All `subagent_type` references use agents bundled with this plugin or `general-purpose`. No cross-plugin dependencies.
-6. **Never enter plan mode autonomously.** Do NOT use EnterPlanMode. This command IS the plan — execute it.
+1. **按顺序执行步骤。** 不要跳过、重新排序或合并步骤。
+2. **写入输出文件。** 每个步骤必须在下一步开始之前将其输出文件写入 `.feature-dev/`。读取上一步的文件——不要依赖上下文窗口记忆。
+3. **在检查点停止。** 当你到达 `阶段检查点` 时，必须停止并等待用户的明确批准后再继续。使用 AskUserQuestion 工具并提供清晰的选项。
+4. **失败时暂停。** 如果任何步骤失败（agent 错误、测试失败、缺少依赖），立即停止。呈现错误并询问用户如何继续。不要静默继续。
+5. **仅使用本地 agent。** 所有 `subagent_type` 引用使用本插件捆绑的 agent 或 `general-purpose`。不要有跨插件依赖。
+6. **遵循本命令内置的执行计划。** 本命令自身已定义分阶段执行流程，无需额外进入计划模式。仅在用户明确要求时才使用 EnterPlanMode。
 
-## Pre-flight Checks
+## 飞行前检查
 
-Before starting, perform these checks:
+开始前，执行以下检查：
 
-### 1. Check for existing session
+### 1. 检查现有会话
 
-Check if `.feature-dev/state.json` exists:
+检查 `.feature-dev/state.json` 是否存在：
 
-- If it exists and `status` is `"in_progress"`: Read it, display the current step, and ask the user:
+- 如果存在且 `status` 为 `"in_progress"`：读取它，显示当前步骤，并询问用户：
 
   ```
-  Found an in-progress feature development session:
-  Feature: [name from state]
-  Current step: [step from state]
+  发现正在进行的功能开发会话：
+  功能：[state 中的 name]
+  当前步骤：[state 中的 step]
 
-  1. Resume from where we left off
-  2. Start fresh (archives existing session)
+  1. 从上次离开的地方继续
+  2. 重新开始（归档现有会话）
   ```
 
-- If it exists and `status` is `"complete"`: Ask whether to archive and start fresh.
+- 如果存在且 `status` 为 `"complete"`：询问是否归档并开始新的。
 
-### 2. Initialize state
+### 2. 初始化状态
 
-Create `.feature-dev/` directory and `state.json`:
+创建 `.feature-dev/` 目录和 `state.json`：
 
 ```json
 {
@@ -56,426 +56,426 @@ Create `.feature-dev/` directory and `state.json`:
 }
 ```
 
-Parse `$ARGUMENTS` for `--methodology` and `--complexity` flags. Use defaults if not specified.
+解析 `$ARGUMENTS` 中的 `--methodology` 和 `--complexity` 标志。如未指定则使用默认值。
 
-### 3. Parse feature description
+### 3. 解析功能描述
 
-Extract the feature description from `$ARGUMENTS` (everything before the flags). This is referenced as `$FEATURE` in prompts below.
+从 `$ARGUMENTS` 中提取功能描述（标志之前的所有内容）。这会在下文的提示中作为 `$FEATURE` 引用。
 
 ---
 
-## Phase 1: Discovery (Steps 1–2) — Interactive
+## 第一阶段：发现（步骤 1–2）—— 交互式
 
-### Step 1: Requirements Gathering
+### 步骤 1：需求收集
 
-Gather requirements through interactive Q&A. Ask ONE question at a time using the AskUserQuestion tool. Do NOT ask all questions at once.
+通过交互式问答收集需求。一次只问一个问题，使用 AskUserQuestion 工具。不要一次性问所有问题。
 
-**Questions to ask (in order):**
+**按顺序提问：**
 
-1. **Problem Statement**: "What problem does this feature solve? Who is the user and what's their pain point?"
-2. **Acceptance Criteria**: "What are the key acceptance criteria? When is this feature 'done'?"
-3. **Scope Boundaries**: "What is explicitly OUT of scope for this feature?"
-4. **Technical Constraints**: "Any technical constraints? (e.g., must use existing auth system, specific DB, latency requirements)"
-5. **Dependencies**: "Does this feature depend on or affect other features/services?"
+1. **问题陈述**："这个功能解决什么问题？用户是谁，他们的痛点是什么？"
+2. **验收标准**："关键的验收标准是什么？这个功能什么时候算'完成'？"
+3. **范围边界**："这个功能明确排除在外的范围是什么？"
+4. **技术约束**："有什么技术约束？（例如，必须使用现有认证系统、特定数据库、延迟要求）"
+5. **依赖关系**："这个功能是否依赖或影响其他功能/服务？"
 
-After gathering answers, write the requirements document:
+收集答案后，写入需求文档：
 
-**Output file:** `.feature-dev/01-requirements.md`
+**输出文件：** `.feature-dev/01-requirements.md`
 
 ```markdown
-# Requirements: $FEATURE
+# 需求：$FEATURE
 
-## Problem Statement
+## 问题陈述
 
-[From Q1]
+[来自 Q1]
 
-## Acceptance Criteria
+## 验收标准
 
-[From Q2 — formatted as checkboxes]
+[来自 Q2 — 格式化为复选框]
 
-## Scope
+## 范围
 
-### In Scope
+### 范围内
 
-[Derived from answers]
+[从答案推导]
 
-### Out of Scope
+### 范围外
 
-[From Q3]
+[来自 Q3]
 
-## Technical Constraints
+## 技术约束
 
-[From Q4]
+[来自 Q4]
 
-## Dependencies
+## 依赖关系
 
-[From Q5]
+[来自 Q5]
 
-## Methodology: [tdd|bdd|ddd|traditional]
+## 方法论：[tdd|bdd|ddd|traditional]
 
-## Complexity: [simple|medium|complex]
+## 复杂度：[simple|medium|complex]
 ```
 
-Update `state.json`: set `current_step` to 2, add `"01-requirements.md"` to `files_created`, add step 1 to `completed_steps`.
+更新 `state.json`：设置 `current_step` 为 2，将 `"01-requirements.md"` 添加到 `files_created`，将步骤 1 添加到 `completed_steps`。
 
-### Step 2: Architecture & Security Design
+### 步骤 2：架构与安全设计
 
-Read `.feature-dev/01-requirements.md` to load requirements context.
+读取 `.feature-dev/01-requirements.md` 以加载需求上下文。
 
-Use the Task tool to launch the architecture agent:
-
-```
-Task:
-  subagent_type: "backend-architect"
-  description: "Design architecture for $FEATURE"
-  prompt: |
-    Design the technical architecture for this feature.
-
-    ## Requirements
-    [Insert full contents of .feature-dev/01-requirements.md]
-
-    ## Deliverables
-    1. **Service/component design**: What components are needed, their responsibilities, and boundaries
-    2. **API design**: Endpoints, request/response schemas, error handling
-    3. **Data model**: Database tables/collections, relationships, migrations needed
-    4. **Security considerations**: Auth requirements, input validation, data protection, OWASP concerns
-    5. **Integration points**: How this connects to existing services/systems
-    6. **Risk assessment**: Technical risks and mitigation strategies
-
-    Write your complete architecture design as a single markdown document.
-```
-
-Save the agent's output to `.feature-dev/02-architecture.md`.
-
-Update `state.json`: set `current_step` to "checkpoint-1", add step 2 to `completed_steps`.
-
----
-
-## PHASE CHECKPOINT 1 — User Approval Required
-
-You MUST stop here and present the architecture for review.
-
-Display a summary of the architecture from `.feature-dev/02-architecture.md` (key components, API endpoints, data model overview) and ask:
-
-```
-Architecture design is complete. Please review .feature-dev/02-architecture.md
-
-1. Approve — proceed to implementation
-2. Request changes — tell me what to adjust
-3. Pause — save progress and stop here
-```
-
-Do NOT proceed to Phase 2 until the user selects option 1. If they select option 2, revise the architecture and re-checkpoint. If option 3, update `state.json` status and stop.
-
----
-
-## Phase 2: Implementation (Steps 3–5)
-
-### Step 3: Backend Implementation
-
-Read `.feature-dev/01-requirements.md` and `.feature-dev/02-architecture.md`.
-
-Use the Task tool to launch the backend architect for implementation:
+使用 Task 工具启动架构 agent：
 
 ```
 Task:
   subagent_type: "backend-architect"
-  description: "Implement backend for $FEATURE"
+  description: "为 $FEATURE 设计架构"
   prompt: |
-    Implement the backend for this feature based on the approved architecture.
+    为此功能设计技术架构。
 
-    ## Requirements
-    [Insert contents of .feature-dev/01-requirements.md]
+    ## 需求
+    [插入 .feature-dev/01-requirements.md 的完整内容]
 
-    ## Architecture
-    [Insert contents of .feature-dev/02-architecture.md]
+    ## 交付物
+    1. **服务/组件设计**：需要什么组件、它们的职责和边界
+    2. **API 设计**：端点、请求/响应模式、错误处理
+    3. **数据模型**：数据库表/集合、关系、需要的迁移
+    4. **安全考虑**：认证需求、输入验证、数据保护、OWASP 关注点
+    5. **集成点**：如何连接到现有服务/系统
+    6. **风险评估**：技术风险和缓解策略
 
-    ## Instructions
-    1. Implement the API endpoints, business logic, and data access layer as designed
-    2. Include data layer components (models, migrations, repositories) as specified in the architecture
-    3. Add input validation and error handling
-    4. Follow the project's existing code patterns and conventions
-    5. If methodology is TDD: write failing tests first, then implement
-    6. Include inline comments only where logic is non-obvious
-
-    Write all code files. Report what files were created/modified.
+    将完整的架构设计写成单个 markdown 文档。
 ```
 
-Save a summary of what was implemented to `.feature-dev/03-backend.md` (list of files created/modified, key decisions, any deviations from architecture).
+将 agent 的输出保存到 `.feature-dev/02-architecture.md`。
 
-Update `state.json`: set `current_step` to 4, add step 3 to `completed_steps`.
+更新 `state.json`：设置 `current_step` 为 "checkpoint-1"，将步骤 2 添加到 `completed_steps`。
 
-### Step 4: Frontend Implementation
+---
 
-Read `.feature-dev/01-requirements.md`, `.feature-dev/02-architecture.md`, and `.feature-dev/03-backend.md`.
+## 阶段检查点 1 —— 需要用户批准
 
-Use the Task tool:
+你必须在此处停止并呈现架构以供审查。
+
+显示 `.feature-dev/02-architecture.md` 的摘要（关键组件、API 端点、数据模型概览）并询问：
+
+```
+架构设计已完成。请审查 .feature-dev/02-architecture.md
+
+1. 批准 —— 继续实施
+2. 请求修改 —— 告诉我需要调整什么
+3. 暂停 —— 保存进度并在此处停止
+```
+
+在用户选择选项 1 之前不要进入第二阶段。如果他们选择选项 2，修改架构并重新检查点。如果选项 3，更新 `state.json` 状态并停止。
+
+---
+
+## 第二阶段：实施（步骤 3–5）
+
+### 步骤 3：后端实现
+
+读取 `.feature-dev/01-requirements.md` 和 `.feature-dev/02-architecture.md`。
+
+使用 Task 工具启动后端架构师进行实施：
+
+```
+Task:
+  subagent_type: "backend-architect"
+  description: "实现 $FEATURE 的后端"
+  prompt: |
+    基于已批准的架构实现此功能的后端。
+
+    ## 需求
+    [插入 .feature-dev/01-requirements.md 的内容]
+
+    ## 架构
+    [插入 .feature-dev/02-architecture.md 的内容]
+
+    ## 指令
+    1. 按设计实现 API 端点、业务逻辑和数据访问层
+    2. 包含架构中指定的数据层组件（模型、迁移、仓库）
+    3. 添加输入验证和错误处理
+    4. 遵循项目现有的代码模式和约定
+    5. 如果方法论是 TDD：先写失败的测试，再实现
+    6. 仅在逻辑不明显的地方添加内联注释
+
+    编写所有代码文件。报告创建/修改了哪些文件。
+```
+
+将实施的摘要保存到 `.feature-dev/03-backend.md`（创建/修改的文件列表、关键决策、与架构的任何偏差）。
+
+更新 `state.json`：设置 `current_step` 为 4，将步骤 3 添加到 `completed_steps`。
+
+### 步骤 4：前端实现
+
+读取 `.feature-dev/01-requirements.md`、`.feature-dev/02-architecture.md` 和 `.feature-dev/03-backend.md`。
+
+使用 Task 工具：
 
 ```
 Task:
   subagent_type: "general-purpose"
-  description: "Implement frontend for $FEATURE"
+  description: "实现 $FEATURE 的前端"
   prompt: |
-    You are a frontend developer. Implement the frontend components for this feature.
+    你是一位前端开发者。为此功能实现前端组件。
 
-    ## Requirements
-    [Insert contents of .feature-dev/01-requirements.md]
+    ## 需求
+    [插入 .feature-dev/01-requirements.md 的内容]
 
-    ## Architecture
-    [Insert contents of .feature-dev/02-architecture.md]
+    ## 架构
+    [插入 .feature-dev/02-architecture.md 的内容]
 
-    ## Backend Implementation
-    [Insert contents of .feature-dev/03-backend.md]
+    ## 后端实现
+    [插入 .feature-dev/03-backend.md 的内容]
 
-    ## Instructions
-    1. Build UI components that integrate with the backend API endpoints
-    2. Implement state management, form handling, and error states
-    3. Add loading states and optimistic updates where appropriate
-    4. Follow the project's existing frontend patterns and component conventions
-    5. Ensure responsive design and accessibility basics (semantic HTML, ARIA labels, keyboard nav)
+    ## 指令
+    1. 构建与后端 API 端点集成的 UI 组件
+    2. 实现状态管理、表单处理和错误状态
+    3. 在适当的地方添加加载状态和乐观更新
+    4. 遵循项目现有的前端模式和组件约定
+    5. 确保响应式设计和基础无障碍（语义化 HTML、ARIA 标签、键盘导航）
 
-    Write all code files. Report what files were created/modified.
+    编写所有代码文件。报告创建/修改了哪些文件。
 ```
 
-Save a summary to `.feature-dev/04-frontend.md`.
+将摘要保存到 `.feature-dev/04-frontend.md`。
 
-**Note:** If the feature has no frontend component (pure backend/API), skip this step — write a brief note in `04-frontend.md` explaining why it was skipped, and continue.
+**注意：** 如果功能没有前端组件（纯后端/API），跳过此步骤——在 `04-frontend.md` 中写一个简短的说明解释为什么跳过，然后继续。
 
-Update `state.json`: set `current_step` to 5, add step 4 to `completed_steps`.
+更新 `state.json`：设置 `current_step` 为 5，将步骤 4 添加到 `completed_steps`。
 
-### Step 5: Testing & Validation
+### 步骤 5：测试与验证
 
-Read `.feature-dev/03-backend.md` and `.feature-dev/04-frontend.md`.
+读取 `.feature-dev/03-backend.md` 和 `.feature-dev/04-frontend.md`。
 
-Launch three agents in parallel using multiple Task tool calls in a single response:
+使用多个 Task 工具并行启动三个 agent：
 
-**5a. Test Suite Creation:**
+**5a. 测试套件创建：**
 
 ```
 Task:
   subagent_type: "test-automator"
-  description: "Create test suite for $FEATURE"
+  description: "为 $FEATURE 创建测试套件"
   prompt: |
-    Create a comprehensive test suite for this feature.
+    为此功能创建全面的测试套件。
 
-    ## What was implemented
-    ### Backend
-    [Insert contents of .feature-dev/03-backend.md]
+    ## 已实现的内容
+    ### 后端
+    [插入 .feature-dev/03-backend.md 的内容]
 
-    ### Frontend
-    [Insert contents of .feature-dev/04-frontend.md]
+    ### 前端
+    [插入 .feature-dev/04-frontend.md 的内容]
 
-    ## Instructions
-    1. Write unit tests for all new backend functions/methods
-    2. Write integration tests for API endpoints
-    3. Write frontend component tests if applicable
-    4. Cover: happy path, edge cases, error handling, boundary conditions
-    5. Follow existing test patterns and frameworks in the project
-    6. Target 80%+ code coverage for new code
+    ## 指令
+    1. 为所有新后端函数/方法编写单元测试
+    2. 为 API 端点编写集成测试
+    3. 如适用，编写前端组件测试
+    4. 覆盖：正常路径、边界情况、错误处理、边界条件
+    5. 遵循项目现有的测试模式和框架
+    6. 新代码目标 80%+ 覆盖率
 
-    Write all test files. Report what test files were created and what they cover.
+    编写所有测试文件。报告创建了哪些测试文件以及它们覆盖什么。
 ```
 
-**5b. Security Review:**
+**5b. 安全审查：**
 
 ```
 Task:
   subagent_type: "security-auditor"
-  description: "Security review of $FEATURE"
+  description: "$FEATURE 的安全审查"
   prompt: |
-    Perform a security review of this feature implementation.
+    对此功能实施进行安全审查。
 
-    ## Architecture
-    [Insert contents of .feature-dev/02-architecture.md]
+    ## 架构
+    [插入 .feature-dev/02-architecture.md 的内容]
 
-    ## Backend Implementation
-    [Insert contents of .feature-dev/03-backend.md]
+    ## 后端实现
+    [插入 .feature-dev/03-backend.md 的内容]
 
-    ## Frontend Implementation
-    [Insert contents of .feature-dev/04-frontend.md]
+    ## 前端实现
+    [插入 .feature-dev/04-frontend.md 的内容]
 
-    Review for: OWASP Top 10, authentication/authorization flaws, input validation gaps,
-    data protection issues, dependency vulnerabilities, and any security anti-patterns.
+    审查：OWASP Top 10、认证/授权缺陷、输入验证缺口、
+    数据保护问题、依赖漏洞、以及任何安全反模式。
 
-    Provide findings with severity, location, and specific fix recommendations.
+    提供发现项，附严重性、位置和具体修复建议。
 ```
 
-**5c. Performance Review:**
+**5c. 性能审查：**
 
 ```
 Task:
   subagent_type: "performance-engineer"
-  description: "Performance review of $FEATURE"
+  description: "$FEATURE 的性能审查"
   prompt: |
-    Review the performance of this feature implementation.
+    审查此功能实现的性能。
 
-    ## Architecture
-    [Insert contents of .feature-dev/02-architecture.md]
+    ## 架构
+    [插入 .feature-dev/02-architecture.md 的内容]
 
-    ## Backend Implementation
-    [Insert contents of .feature-dev/03-backend.md]
+    ## 后端实现
+    [插入 .feature-dev/03-backend.md 的内容]
 
-    ## Frontend Implementation
-    [Insert contents of .feature-dev/04-frontend.md]
+    ## 前端实现
+    [插入 .feature-dev/04-frontend.md 的内容]
 
-    Review for: N+1 queries, missing indexes, unoptimized queries, memory leaks,
-    missing caching opportunities, large payloads, slow rendering paths.
+    审查：N+1 查询、缺失索引、未优化查询、内存泄漏、
+    缺失缓存机会、大载荷、慢渲染路径。
 
-    Provide findings with impact estimates and specific optimization recommendations.
+    提供发现项，附影响估算和具体优化建议。
 ```
 
-After all three complete, consolidate results into `.feature-dev/05-testing.md`:
+三个全部完成后，将结果整合到 `.feature-dev/05-testing.md`：
 
 ```markdown
-# Testing & Validation: $FEATURE
+# 测试与验证：$FEATURE
 
-## Test Suite
+## 测试套件
 
-[Summary from 5a — files created, coverage areas]
+[来自 5a 的摘要——创建的文件、覆盖区域]
 
-## Security Findings
+## 安全发现项
 
-[Summary from 5b — findings by severity]
+[来自 5b 的摘要——按严重性分类的发现项]
 
-## Performance Findings
+## 性能发现项
 
-[Summary from 5c — findings by impact]
+[来自 5c 的摘要——按影响分类的发现项]
 
-## Action Items
+## 行动项
 
-[List any critical/high findings that need to be addressed before delivery]
+[列出交付前需要解决的任何关键/高优先级发现项]
 ```
 
-If there are Critical or High severity findings from security or performance review, address them now before proceeding. Apply fixes and re-validate.
+如果安全或性能审查有关键或高严重性的发现项，立即修复。应用修复并重新验证。
 
-Update `state.json`: set `current_step` to "checkpoint-2", add step 5 to `completed_steps`.
+更新 `state.json`：设置 `current_step` 为 "checkpoint-2"，将步骤 5 添加到 `completed_steps`。
 
 ---
 
-## PHASE CHECKPOINT 2 — User Approval Required
+## 阶段检查点 2 —— 需要用户批准
 
-Display a summary of testing and validation results from `.feature-dev/05-testing.md` and ask:
+显示 `.feature-dev/05-testing.md` 的测试和验证结果摘要并询问：
 
 ```
-Testing and validation complete. Please review .feature-dev/05-testing.md
+测试和验证完成。请审查 .feature-dev/05-testing.md
 
-Test coverage: [summary]
-Security findings: [X critical, Y high, Z medium]
-Performance findings: [X critical, Y high, Z medium]
+测试覆盖率：[摘要]
+安全发现项：[X 关键, Y 高, Z 中]
+性能发现项：[X 关键, Y 高, Z 中]
 
-1. Approve — proceed to deployment & documentation
-2. Request changes — tell me what to fix
-3. Pause — save progress and stop here
+1. 批准 —— 继续部署和文档
+2. 请求修改 —— 告诉我修复什么
+3. 暂停 —— 保存进度并在此处停止
 ```
 
-Do NOT proceed to Phase 3 until the user approves.
+在用户批准之前不要进入第三阶段。
 
 ---
 
-## Phase 3: Delivery (Steps 6–7)
+## 第三阶段：交付（步骤 6–7）
 
-### Step 6: Deployment & Monitoring
+### 步骤 6：部署与监控
 
-Read `.feature-dev/02-architecture.md` and `.feature-dev/05-testing.md`.
+读取 `.feature-dev/02-architecture.md` 和 `.feature-dev/05-testing.md`。
 
-Use the Task tool:
+使用 Task 工具：
 
 ```
 Task:
   subagent_type: "general-purpose"
-  description: "Create deployment config for $FEATURE"
+  description: "为 $FEATURE 创建部署配置"
   prompt: |
-    You are a deployment engineer. Create the deployment and monitoring configuration for this feature.
+    你是一位部署工程师。为此功能创建部署和监控配置。
 
-    ## Architecture
-    [Insert contents of .feature-dev/02-architecture.md]
+    ## 架构
+    [插入 .feature-dev/02-architecture.md 的内容]
 
-    ## Testing Results
-    [Insert contents of .feature-dev/05-testing.md]
+    ## 测试结果
+    [插入 .feature-dev/05-testing.md 的内容]
 
-    ## Instructions
-    1. Create or update CI/CD pipeline configuration for the new code
-    2. Add feature flag configuration if the feature should be gradually rolled out
-    3. Define health checks and readiness probes for new services/endpoints
-    4. Create monitoring alerts for key metrics (error rate, latency, throughput)
-    5. Write a deployment runbook with rollback steps
-    6. Follow existing deployment patterns in the project
+    ## 指令
+    1. 为新代码创建或更新 CI/CD 流水线配置
+    2. 如果功能应逐步推出，添加功能标志配置
+    3. 为新服务/端点定义健康检查和就绪探针
+    4. 为关键指标（错误率、延迟、吞吐量）创建监控告警
+    5. 编写包含回滚步骤的部署运维手册
+    6. 遵循项目现有的部署模式
 
-    Write all configuration files. Report what was created/modified.
+    编写所有配置文件。报告创建/修改了什么。
 ```
 
-Save output to `.feature-dev/06-deployment.md`.
+将输出保存到 `.feature-dev/06-deployment.md`。
 
-Update `state.json`: set `current_step` to 7, add step 6 to `completed_steps`.
+更新 `state.json`：设置 `current_step` 为 7，将步骤 6 添加到 `completed_steps`。
 
-### Step 7: Documentation & Handoff
+### 步骤 7：文档与交接
 
-Read all previous `.feature-dev/*.md` files.
+读取所有之前的 `.feature-dev/*.md` 文件。
 
-Use the Task tool:
+使用 Task 工具：
 
 ```
 Task:
   subagent_type: "general-purpose"
-  description: "Write documentation for $FEATURE"
+  description: "为 $FEATURE 编写文档"
   prompt: |
-    You are a technical writer. Create documentation for this feature.
+    你是一位技术文档撰写者。为此功能创建文档。
 
-    ## Feature Context
-    [Insert contents of .feature-dev/01-requirements.md]
+    ## 功能上下文
+    [插入 .feature-dev/01-requirements.md 的内容]
 
-    ## Architecture
-    [Insert contents of .feature-dev/02-architecture.md]
+    ## 架构
+    [插入 .feature-dev/02-architecture.md 的内容]
 
-    ## Implementation Summary
-    ### Backend: [Insert contents of .feature-dev/03-backend.md]
-    ### Frontend: [Insert contents of .feature-dev/04-frontend.md]
+    ## 实施摘要
+    ### 后端：[插入 .feature-dev/03-backend.md 的内容]
+    ### 前端：[插入 .feature-dev/04-frontend.md 的内容]
 
-    ## Deployment
-    [Insert contents of .feature-dev/06-deployment.md]
+    ## 部署
+    [插入 .feature-dev/06-deployment.md 的内容]
 
-    ## Instructions
-    1. Write API documentation for new endpoints (request/response examples)
-    2. Update or create user-facing documentation if applicable
-    3. Write a brief architecture decision record (ADR) explaining key design choices
-    4. Create a handoff summary: what was built, how to test it, known limitations
+    ## 指令
+    1. 为新端点编写 API 文档（请求/响应示例）
+    2. 如适用，更新或创建面向用户的文档
+    3. 编写简短的架构决策记录（ADR），解释关键设计选择
+    4. 创建交接摘要：构建了什么、如何测试、已知限制
 
-    Write documentation files. Report what was created/modified.
+    编写文档文件。报告创建/修改了什么。
 ```
 
-Save output to `.feature-dev/07-documentation.md`.
+将输出保存到 `.feature-dev/07-documentation.md`。
 
-Update `state.json`: set `current_step` to "complete", add step 7 to `completed_steps`.
+更新 `state.json`：设置 `current_step` 为 "complete"，将步骤 7 添加到 `completed_steps`。
 
 ---
 
-## Completion
+## 完成
 
-Update `state.json`:
+更新 `state.json`：
 
-- Set `status` to `"complete"`
-- Set `last_updated` to current timestamp
+- 设置 `status` 为 `"complete"`
+- 设置 `last_updated` 为当前时间戳
 
-Present the final summary:
+呈现最终摘要：
 
 ```
-Feature development complete: $FEATURE
+功能开发完成：$FEATURE
 
-## Files Created
-[List all .feature-dev/ output files]
+## 创建的文件
+[列出所有 .feature-dev/ 输出文件]
 
-## Implementation Summary
-- Requirements: .feature-dev/01-requirements.md
-- Architecture: .feature-dev/02-architecture.md
-- Backend: .feature-dev/03-backend.md
-- Frontend: .feature-dev/04-frontend.md
-- Testing: .feature-dev/05-testing.md
-- Deployment: .feature-dev/06-deployment.md
-- Documentation: .feature-dev/07-documentation.md
+## 实施摘要
+- 需求：.feature-dev/01-requirements.md
+- 架构：.feature-dev/02-architecture.md
+- 后端：.feature-dev/03-backend.md
+- 前端：.feature-dev/04-frontend.md
+- 测试：.feature-dev/05-testing.md
+- 部署：.feature-dev/06-deployment.md
+- 文档：.feature-dev/07-documentation.md
 
-## Next Steps
-1. Review all generated code and documentation
-2. Run the full test suite to verify everything passes
-3. Create a pull request with the implementation
-4. Deploy using the runbook in .feature-dev/06-deployment.md
+## 下一步
+1. 审查所有生成的代码和文档
+2. 运行完整测试套件以验证全部通过
+3. 创建包含实现的拉取请求
+4. 使用 .feature-dev/06-deployment.md 中的运维手册进行部署
 ```
